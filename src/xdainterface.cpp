@@ -65,6 +65,7 @@
 
 #include "xdainterface.h"
 
+#include <mavros_msgs/msg/rtcm.h>
 #include <xscontroller/xscontrol_def.h>
 #include <xscontroller/xsdevice_def.h>
 #include <xscontroller/xsscanner.h>
@@ -80,6 +81,7 @@
 #include "messagepublishers/packetcallback.h"
 #include "messagepublishers/positionllapublisher.h"
 #include "messagepublishers/pressurepublisher.h"
+#include "messagepublishers/statuspublisher.h"
 #include "messagepublishers/temperaturepublisher.h"
 #include "messagepublishers/timereferencepublisher.h"
 #include "messagepublishers/transformpublisher.h"
@@ -164,6 +166,9 @@ void XdaInterface::registerPublishers() {
   }
   if (get_parameter("pub_velocity", should_publish) && should_publish) {
     registerCallback(new VelocityPublisher(node));
+  }
+  if (get_parameter("pub_status", should_publish) && should_publish) {
+    registerCallback(new StatusPublisher(node));
   }
 }
 
@@ -282,6 +287,17 @@ bool XdaInterface::prepare() {
   return true;
 }
 
+void XdaInterface::rtcmCallback(const mavros_msgs::msg::RTCM::SharedPtr msg) {
+  RCLCPP_INFO(this->get_logger(), "RTCM received at [%d]",
+              msg->header.stamp.sec);
+  XsMessage rtcm(XMID_ForwardGnssData);
+  uint16_t rtcmMessageLength = (const uint16_t)msg->data.size();
+  rtcm.setDataBuffer((const uint8_t *)&msg->data[0], rtcmMessageLength, 0);
+
+  XsMessage rcv;
+  m_device->sendCustomMessage(rtcm, false, rcv, 0);
+}
+
 void XdaInterface::close() {
   if (m_device != nullptr) {
     m_device->stopRecording();
@@ -325,6 +341,7 @@ void XdaInterface::declareCommonParameters() {
   declare_parameter("pub_transform", should_publish);
   declare_parameter("pub_positionLLA", should_publish);
   declare_parameter("pub_velocity", should_publish);
+  declare_parameter("pub_status", should_publish);
 
   declare_parameter("scan_for_devices", true);
   declare_parameter("device_id", "");

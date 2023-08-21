@@ -67,10 +67,12 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <iostream>
+#include <mavros_msgs/msg/rtcm.h>
 #include <stdexcept>
 #include <string>
 
 using std::chrono::milliseconds;
+using std::placeholders::_1;
 
 Journaller *gJournal = 0;
 
@@ -89,6 +91,11 @@ int main(int argc, char *argv[]) {
 
   if (!xdaInterface->prepare())
     return -1;
+
+  rclcpp::Subscription<mavros_msgs::msg::RTCM>::SharedPtr subscription =
+      xdaInterface->create_subscription<mavros_msgs::msg::RTCM>(
+          "/rtcm", 10,
+          std::bind(&XdaInterface::rtcmCallback, xdaInterface, _1));
 
   while (rclcpp::ok()) {
     xdaInterface->spinFor(milliseconds(100));
